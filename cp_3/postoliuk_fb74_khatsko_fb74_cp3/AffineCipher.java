@@ -13,10 +13,10 @@ import static crypto.Entropy.sortByValue;
 
 
 public class AffineCipher {
-    private static final String RUSSIAN_ALPHABET = "абвгдежзийклмнопрстуфхцчшщьыэюя"; // There are no "ё", "ь".
+    private static final String RUSSIAN_ALPHABET = "Р°Р±РІРіРґРµР¶Р·РёР№РєР»РјРЅРѕРїСЂСЃС‚СѓС„С…С†С‡С€С‰СЊС‹СЌСЋСЏ"; // There are no "С‘", "СЊ".
     private static final int RUSSIAN_ALPHABET_LENGTH = 31;
 
-    private static List<String> RUSSIAN_FREQUENTEST_BIGRAMS = List.of("ст", "но", "то", "на", "ен");
+    private static List<String> RUSSIAN_FREQUENTEST_BIGRAMS = List.of("СЃС‚", "РЅРѕ", "С‚Рѕ", "РЅР°", "РµРЅ");
 
     private static int modInverse(int a, int m) {
         if (m <= 0) {
@@ -59,6 +59,15 @@ public class AffineCipher {
 
         // get positive modulo
         int d = (a0 + m) % m;
+
+        if (b % d != 0) {
+            throw new IllegalArgumentException(
+                    String.format(
+                            "Congruence %sx = %s mod (%s) has no solutions, because %s is not divisible by %s! ",
+                            a, b, m, b, d
+                    )
+            );
+        }
 
         int a1 = a / d;
         int m1 = m / d;
@@ -116,12 +125,24 @@ public class AffineCipher {
             Y1 = RUSSIAN_ALPHABET.indexOf(y1List.get(i).charAt(0)) * modulus + RUSSIAN_ALPHABET.indexOf(y1List.get(i).charAt(1));
             X2 = RUSSIAN_ALPHABET.indexOf(x2List.get(i).charAt(0)) * modulus + RUSSIAN_ALPHABET.indexOf(x2List.get(i).charAt(1));
             Y2 = RUSSIAN_ALPHABET.indexOf(y2List.get(i).charAt(0)) * modulus + RUSSIAN_ALPHABET.indexOf(y2List.get(i).charAt(1));
+            System.out.println("X1=" + x1List.get(i) + " Y1=" + y1List.get(i));
+            System.out.println("X2=" + x2List.get(i) + " Y2=" + y2List.get(i));
             aSolutions = solveLinearCongruence(X1 - X2, Y1 - Y2, modulusSquare);
+            System.out.println("Potential a values: " + aSolutions);
             for (Integer a : aSolutions) {
                 bSolutions = solveLinearCongruence(1, Y1 - a * X1, modulusSquare);
-                String plainText = decrypt(cipherText, a, bSolutions.get(0));
-                if (isTextInformative(plainText))
-                    return plainText;
+                for (Integer b : bSolutions) {
+                    System.out.println("Potential b values for a=" + a + ": " + bSolutions);
+                    System.out.print("For a=" + a + " b=" + b);
+                    String plainText = decrypt(cipherText, a, b);
+                    if (isTextInformative(plainText)) {
+                        System.out.println(" text is informative");
+                        return plainText;
+                    } else {
+                        System.out.println(" text is not informative");
+                    }
+                    System.out.println();
+                }
             }
         }
         return "";
@@ -132,8 +153,8 @@ public class AffineCipher {
         encryptedText = encryptedText.toLowerCase()
                 // remove all non-russian characters
                 .replaceAll(String.format("[^%s]", RUSSIAN_ALPHABET), "")
-                .replaceAll("ё", "е")
-                .replaceAll("ъ", "ь")
+                .replaceAll("С‘", "Рµ")
+                .replaceAll("СЉ", "СЊ")
                 // trim trailing and leading spaces
                 .trim()
                 // replace multiple spaces with single
